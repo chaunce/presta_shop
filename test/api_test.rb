@@ -23,29 +23,29 @@ class ApiTest < Minitest::Test
   end
 
   def test_get_resources
-    resources = Prestashopper::API.new(@url, @key).resources
+    resources = PrestaShop::API.new(@url, @key).resources
     assert_equal @resources.length, resources.length
     @resources.each { |resource| assert_includes resources, resource }
   end
 
   def test_get_products
-    products_ids = Prestashopper::API.new(@url, @key).get_products
+    products_ids = PrestaShop::API.new(@url, @key).get(:products)
     assert_equal @product_ids.length, products_ids.length
     @product_ids.each { |id| assert_includes products_ids, id }
   end
 
   def test_get_products_for_ids
-    products = Prestashopper::API.new(@url, @key).get_products(*@product_ids)
+    products = PrestaShop::API.new(@url, @key).get(:products, @product_ids)
     assert_equal @product_ids.length, products.length
     products_ids = products.collect(&:id)
     @product_ids.each { |id| assert_includes products_ids, id }
-    products.each { |product| assert_kind_of Prestashopper::Product, product }
+    products.each { |product| assert_kind_of PrestaShop::Product, product }
   end
 
   def test_get_product_for_id
     product_id = @product_ids.first
-    product = Prestashopper::API.new(@url, @key).get_product(product_id)
-    assert_kind_of Prestashopper::Product, product
+    product = PrestaShop::API.new(@url, @key).get(:product, product_id)
+    assert_kind_of PrestaShop::Product, product
     assert_equal product.id, product_id
   end
 end

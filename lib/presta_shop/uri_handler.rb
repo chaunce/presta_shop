@@ -1,6 +1,6 @@
 require 'uri'
 
-module Prestashopper
+module PrestaShop
 
   # Handle URIs, converting from base Prestashop URL to API URIs
   class UriHandler

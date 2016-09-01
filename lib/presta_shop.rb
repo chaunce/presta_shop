@@ -1,15 +1,13 @@
-require 'prestashopper/version'
 require 'rest-client'
 require 'nokogiri'
-require 'prestashopper/api'
-require 'prestashopper/uri_handler'
 require 'active_support/core_ext/string'
 require 'active_support/core_ext/hash'
+require 'presta_shop/api'
+require 'presta_shop/resource'
+require 'presta_shop/uri_handler'
+require 'presta_shop/version'
 
-# @author Alfredo Amatriain <geralt@gmail.com>
-#
-# Ruby gem for interacting with the Prestashop API.
-module Prestashopper
+module PrestaShop
 
   # Check if there is an enabled API in a Prestashop instance.
   # @param url [String] base URL of the Prestashop installation. Do not append "/api" to it, the gem does it internally.
