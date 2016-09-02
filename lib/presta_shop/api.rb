@@ -28,6 +28,14 @@ module PrestaShop
     attr_reader :key
     attr_reader :client
 
+    class << self
+      def normalize_resource(resource)
+        resource = resource.to_s.pluralize.to_sym
+        resource = resource.to_s.singularize.to_sym if [:order_slips, :content_management_systems].include?(resource)
+        resource
+      end
+    end
+
     # Create a new instance
     # @param url [String] base URL of the Prestashop installation. Do not append "/api" to it, the gem does it internally.
     #   E.g. use "http://my.prestashop.com", not "http://my.prestashop.com/api"
@@ -62,7 +70,7 @@ module PrestaShop
       when Array then get_resources(resource, ids, params)
       when NilClass then get_resource_ids(resource, params)
       when /^schema$/, /^synopsis$/ then generate_resource_object(resource, nil, params.merge({schema: :synopsis}))
-      when /^blank$/ then generate_resource_object(resource, nil, params.merge({schema: :blank}))
+      when /^blank$/ then generate_resource_object(resource, nil, params.merge({schema: :blank}), resource_class(resource))
       else get_resource(resource, ids, params, true)
       end
     end
@@ -92,18 +100,27 @@ module PrestaShop
         api: self, resource_name: resource, schema: generate_resource_object(resource, nil, {schema: :synopsis}))
     end
 
+    def resource_languages
+      @resource_languages ||= resources.include?(:languages) ? get(:languages).zip({}).to_h : {}
+    end
+
+    def resource_language(language_id)
+      resource_languages.include?(language_id) ? resource_languages[language_id] ||= get(:languages, language_id).name : language_id
+    end
+
     def schema(resource)
       resource_requestor(resource).schema
     end
 
     def normalize_resource(resource)
-      resource = resource.to_s.pluralize.to_sym
-      resource = resource.to_s.singularize.to_sym if [:order_slips, :content_management_systems].include?(resource)
-      resource
+      self.class.normalize_resource(resource)
     end
 
     def build_query_params(params)
-      "?#{params.to_query}" unless params.none?
+      case
+      when params.include?(:schema) then "?#{params.to_query}"
+      when params.any? then "?date=1&#{params.map{ |k,v| ["filter[#{k}]", v] }.to_h.to_query}"
+      end
     end
 
     def extract_ids(args)
@@ -141,6 +158,7 @@ module PrestaShop
       xpath = XPATH_MAP.dig(resource, :find) || resource.to_s.singularize
       xml_response = Nokogiri::XML(client[resource][id][build_query_params(params)].get.body).remove_namespaces!.xpath("/prestashop/#{xpath}")
       resource_object = JSON.parse(Hash.from_xml(xml_response.to_s).values.first.to_json, object_class: object_class)
+      resource_object.xml = xml_response
       resource_object.schema_synopsis = object_schema
       resource_object
     end
