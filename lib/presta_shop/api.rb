@@ -44,17 +44,11 @@ module PrestaShop
       @resources ||= Nokogiri::XML(client.get.body).xpath('/prestashop/api/*').collect { |resource| resource.name.to_sym }
     end
 
-    def schemas
-      @schemas ||= resources.zip({}).to_h
-    end
-
-    def schema(resource)
-      schemas[resource] ||= generate_json_response(resource, '?schema=synopsis')
-    end
-
-    def image(*image_path)
-      client[([:images]+image_path).join('/')].get.body
-    end
+    # # # THIS NEEDS TO BE A NEW REQUESTOR TYPE
+    # # # api.images.find('general/header') << this works
+    # def image(*image_path)
+    #   client[([:images]+image_path).join('/')].get.body
+    # end
 
     def get(resource, *args)
       resource = normalize_resource(resource)
@@ -67,15 +61,15 @@ module PrestaShop
       case ids
       when Array then get_resources(resource, ids, params)
       when NilClass then get_resource_ids(resource, params)
-      when /^schema$/, /^synopsis$/ then get_resource_synopsis(resource, params)
-      when /^blank$/ then get_resource_blank(resource, params)
+      when /^schema$/, /^synopsis$/ then generate_resource_object(resource, nil, params.merge({schema: :synopsis}))
+      when /^blank$/ then generate_resource_object(resource, nil, params.merge({schema: :blank}))
       else get_resource(resource, ids, params, true)
       end
     end
 
     def method_missing(method, *args, &block)
       if resources.include?(resource = normalize_resource(method))
-        get(resource, *args)
+        resource_requestor(resource)
       else
         super
       end
@@ -83,10 +77,33 @@ module PrestaShop
 
     private
 
+    def resource_class(resource)
+      resource_class_name = resource.to_s.classify
+      "PrestaShop::#{resource_class_name}".safe_constantize || PrestaShop.const_set(resource_class_name, Class.new(PrestaShop::Resource))
+    end
+
+    def resource_requestors
+      @resource_requestors ||= resources.zip({}).to_h
+    end
+
+    def resource_requestor(resource)
+      resource = normalize_resource(resource)
+      resource_requestors[resource] ||= ("PrestaShop::Requestor::#{resource.to_s.classify}".safe_constantize || PrestaShop::Requestor).new(
+        api: self, resource_name: resource, schema: generate_resource_object(resource, nil, {schema: :synopsis}))
+    end
+
+    def schema(resource)
+      resource_requestor(resource).schema
+    end
+
     def normalize_resource(resource)
       resource = resource.to_s.pluralize.to_sym
       resource = resource.to_s.singularize.to_sym if [:order_slips, :content_management_systems].include?(resource)
       resource
+    end
+
+    def build_query_params(params)
+      "?#{params.to_query}" unless params.none?
     end
 
     def extract_ids(args)
@@ -99,47 +116,33 @@ module PrestaShop
     end
 
     def extract_params(args)
-      args.last if args.last.is_a? Hash
+      args.last.is_a?(Hash) ? args.last : {}
     end
 
     def get_resource_ids(resource, params)
       xpath = XPATH_MAP.dig(resource, :list) || resource
-      Nokogiri::XML(client[resource].get.body).xpath("/prestashop/#{xpath}/*/@id").collect(&:value)
+      Nokogiri::XML(client[resource][build_query_params(params)].get.body).xpath("/prestashop/#{xpath}/*/@id").collect(&:value)
     end
 
     def get_resource(resource, id, params, raise_not_found_exception = false)
-      resource_class_name = resource.to_s.classify
-      resource_class = "PrestaShop::#{resource_class_name}".safe_constantize || PrestaShop.const_set(resource_class_name, Class.new(PrestaShop::Resource))
-
       begin
-        response = generate_json_response(resource, id, params, resource_class)
-        response.schema_synopsis = schema(resource)
-        response
+        generate_resource_object(resource, id, params, resource_class(resource), schema(resource))
       rescue RestClient::NotFound
         raise if raise_not_found_exception
         nil
       end
     end
 
-    def get_resources(resource, ids, params = nil)
+    def get_resources(resource, ids, params = {})
       ids.uniq.sort.collect { |id| get_resource(resource, id, params) }.compact
     end
 
-    def get_resource_synopsis(resource, params = nil)
-      generate_json_response(resource, '?schema=synopsis', params)
-    end
-
-    def get_resource_blank(resource, params = nil)
-      generate_json_response(resource, '?schema=blank', params)
-    end
-
-    def generate_xml_response(resource, id, params = nil)
+    def generate_resource_object(resource, id, params = {}, object_class = OpenStruct, object_schema = nil)
       xpath = XPATH_MAP.dig(resource, :find) || resource.to_s.singularize
-      Nokogiri::XML(client[resource][id].get.body).remove_namespaces!.xpath("/prestashop/#{xpath}")
-    end
-
-    def generate_json_response(resource, id, params = nil, object_class = OpenStruct)
-      JSON.parse(Hash.from_xml(generate_xml_response(resource, id, params).to_s).values.first.to_json, object_class: object_class)
+      xml_response = Nokogiri::XML(client[resource][id][build_query_params(params)].get.body).remove_namespaces!.xpath("/prestashop/#{xpath}")
+      resource_object = JSON.parse(Hash.from_xml(xml_response.to_s).values.first.to_json, object_class: object_class)
+      resource_object.schema_synopsis = object_schema
+      resource_object
     end
 
   end

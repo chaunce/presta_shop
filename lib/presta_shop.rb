@@ -1,9 +1,13 @@
-require 'rest-client'
-require 'nokogiri'
+require 'active_model'
 require 'active_support/core_ext/string'
 require 'active_support/core_ext/hash'
+require 'nokogiri'
+require 'rest-client'
+
 require 'presta_shop/api'
 require 'presta_shop/resource'
+require 'presta_shop/requestor'
+require 'presta_shop/requestor/image'
 require 'presta_shop/uri_handler'
 require 'presta_shop/version'
 

@@ -40,18 +40,18 @@ api.resources
 
 ### get a list of ids for an available resource
 ```
-order_ids = api.orders
+order_ids = api.orders.list
  => [1, 2, 3, 4, 5, 6]
 ```
 
 ### get a specific resource by id
 ```
-order = api.order 1
+order = api.order.find(1)
  => #<PrestaShop::Order id=1, ...>
 ```
 
 ### get an array of resources
 ```
-order = api.orders 1, 2, 3
- => #<PrestaShop::Order id=1, ...>, #<PrestaShop::Order id=2, ...>, #<PrestaShop::Order id=3, ...>
+orders = api.orders.find(1, 2, 3)
+ => [#<PrestaShop::Order id=1, ...>, #<PrestaShop::Order id=2, ...>, #<PrestaShop::Order id=3, ...>]
 ```

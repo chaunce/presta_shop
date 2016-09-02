@@ -1,5 +1,6 @@
 module PrestaShop
   class Resource < OpenStruct
+    attr_reader :schema_synopsis
 
     def initialize
       super
@@ -9,10 +10,6 @@ module PrestaShop
     def schema_synopsis=(schema)
       @schema_synopsis = schema
       cast_attribute_data_types_from_schema_synopsis      
-    end
-
-    def schema_synopsis
-      @schema_synopsis
     end
 
     private
