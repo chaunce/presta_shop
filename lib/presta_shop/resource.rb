@@ -1,8 +1,8 @@
 module PrestaShop
   class Resource < OpenStruct
-    attr_reader :schema_synopsis
+    attr_reader :schema_synopsis, :xml
 
-    def initialize
+    def initialize(*args)
       super
       cast_attribute_data_types_from_schema_synopsis if self.schema_synopsis.present?
     end
@@ -10,6 +10,10 @@ module PrestaShop
     def schema_synopsis=(schema)
       @schema_synopsis = schema
       cast_attribute_data_types_from_schema_synopsis      
+    end
+
+    def xml=(xml)
+      @xml = xml
     end
 
     private
@@ -27,15 +31,25 @@ module PrestaShop
         nested_schema_synopsis.try(:format) if nested_schema_synopsis.is_a? OpenStruct
       end
 
-      if self.dig(*nested_attribute).class == self.class
-        self.dig(*nested_attribute).marshal_dump.keys.each { |attribute| cast_attribute_from_schema(attribute, nested_attribute) }
-      elsif self.dig(*nested_attribute).class == Array
-        self.dig(*nested_attribute).each_with_index do |_, i|
+      nested_attribute_data = self.dig(*nested_attribute)
+      if nested_attribute_data.class == self.class
+        nested_attribute_data.marshal_dump.keys.each { |attribute| cast_attribute_from_schema(attribute, nested_attribute) }
+      elsif nested_attribute_data.class == Array && ( nested_attribute_data.none? && nested_attribute_data.first.class == self.class )
+        nested_attribute_data.each_with_index do |_, i|
           array_nested_attribute = nested_attribute + [i]
           self.dig(*array_nested_attribute).marshal_dump.keys.each { |attribute| cast_attribute_from_schema(attribute, array_nested_attribute) }
         end
+      elsif nested_attribute_data.class == Array
+        # resource = PrestaShop::API.normalize_resource(self.class.name.demodulize.underscore)
+        # xpath = PrestaShop::API::XPATH_MAP.dig(resource, :find) || resource.to_s.singularize
+
+        # builds an array of nested objects
+        # could be better, but will work for now
+        segment = nested.any? ? self.dig(*nested) : self
+        segment[attribute] = xml.xpath(nested_attribute.join('/')).collect do |element|
+          self.class.new(element.collect.to_h.merge({nested.last || :name => Hash.from_xml(element.to_s).values.first}))
+        end
       else
-        puts [self.class, self.id].inspect if value == '1' && format == 'isBool'
         segment = nested.any? ? self.dig(*nested) : self
         segment[attribute] = cast_value_from_schema_format(segment[attribute], format)
       end
@@ -56,6 +70,7 @@ module PrestaShop
       when 'isInt', 'isNullOrUnsignedId', 'isUnsignedId', 'isImageSize', 'isUnsignedInt'
         case value
         when nil, /null/i then nil
+        when /\D/ then value
         else value.to_i
         end
       when 'isSerializedArray'
