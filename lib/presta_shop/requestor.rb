@@ -16,7 +16,7 @@ module PrestaShop
       get(:blank, *args)
     end
 
-    def search(*args)
+    def search(args)
       get(args.collect{ |k,v| ["filter[#{k}]", v] }.to_h.merge({date: 1}))
     end
 

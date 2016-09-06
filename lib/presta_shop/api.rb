@@ -117,10 +117,7 @@ module PrestaShop
     end
 
     def build_query_params(params)
-      case
-      when params.include?(:schema) then "?#{params.to_query}"
-      when params.any? then "?date=1&#{params.map{ |k,v| ["filter[#{k}]", v] }.to_h.to_query}"
-      end
+      "?#{params.to_query}" if params.any?
     end
 
     def extract_ids(args)
