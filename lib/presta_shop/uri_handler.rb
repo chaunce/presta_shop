@@ -19,7 +19,7 @@ module PrestaShop
       # Add http:// scheme if the scheme is missing from the base url
       base_url = 'http://' + base_url if URI.parse(base_url).scheme.nil?
 
-      uri = URI.join base_url, API_PATH
+      uri = URI.join base_url.gsub(%r{api/?}), API_PATH
       return uri.to_s
     end
   end
