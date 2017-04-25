@@ -4,7 +4,7 @@ module PrestaShop
 
   # Handle URIs, converting from base Prestashop URL to API URIs
   class UriHandler
-    API_PATH = 'api/'
+    API_PATH = ''
 
     # Convert a base Prestashop URL to its API URI
     # @param base_url [String] a Prestashop base URL. Do not append "/api", it is appended internally. E.g. use
@@ -19,8 +19,7 @@ module PrestaShop
       # Add http:// scheme if the scheme is missing from the base url
       base_url = 'http://' + base_url if URI.parse(base_url).scheme.nil?
 
-      uri = URI.join base_url, API_PATH
-      return uri.to_s
+      URI base_url.to_s
     end
   end
 end
